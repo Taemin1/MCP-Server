@@ -1,18 +1,22 @@
 package com.konantech.mcp;
 
+import org.springframework.ai.tool.ToolCallbackProvider;
+import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+
+import com.konantech.mcp.service.UserService;
 
 @SpringBootApplication
 public class McpApplication {
 
 	public static void main(String[] args) {        
-		// STDIO 모드 확인
-        String transport = System.getProperty("spring.ai.mcp.server.transport");
-        if (!"STDIO".equals(transport)) {
-            System.err.println("Warning: STDIO transport not configured");
-        }
 		SpringApplication.run(McpApplication.class, args);
 	}
-
+	
+	@Bean
+	public ToolCallbackProvider toolCallbackProvider(UserService userService) {
+		return MethodToolCallbackProvider.builder().toolObjects(userService).build();
+	}
 }

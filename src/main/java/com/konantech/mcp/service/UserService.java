@@ -24,6 +24,13 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
     
+    private static final List<String> DATA = List.of(
+	    "Alpha", "Bravo", "Charlie", "Delta", "Echo",
+	    "Foxtrot", "Golf", "Hotel", "India", "Juliet"					
+	);
+    
+    private static final int PAGE_SIZE = 3;
+    
     @Tool(name = "MyFirstToolWorks", description = "첫 번째 도구가 제대로 작동하는지 확인하는 도구입니다. MCP 서버 연결 확인이 필요할 때 이 도구를 사용하세요. 예: '첫 번째 도구가 작동하는지 보여줘', 'MCP 서버 연결 상태 확인해줘', '도구 테스트해줘'")
     public void MyFirstToolWorks() {
     	System.out.println("My First Tool Works!!!!!!");
