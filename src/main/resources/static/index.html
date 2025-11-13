@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Tool Test UI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .input-group select,
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .input-group select:focus,
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 150px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .tool-item {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .tool-name {
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        .tool-description {
+            color: #666;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ MCP Tool Test UI</h1>
+        <p class="subtitle">Spring AI MCP Server 테스트 인터페이스</p>
+
+        <div id="status" class="status disconnected">
+            ❌ 연결 안됨
+        </div>
+
+        <div class="section">
+            <h2>1️⃣ 연결 설정</h2>
+            <button onclick="connectSSE()">SSE 연결</button>
+            <button onclick="disconnect()">연결 해제</button>
+            <div class="output" id="connection-info">연결을 시작하려면 'SSE 연결' 버튼을 클릭하세요.</div>
+        </div>
+
+        <div class="section">
+            <h2>2️⃣ Tool 목록 조회</h2>
+            <button onclick="listTools()" id="listToolsBtn" disabled>Tool 목록 보기</button>
+            <div class="output" id="tools-output">연결 후 Tool 목록을 조회할 수 있습니다.</div>
+        </div>
+
+        <div class="section">
+            <h2>3️⃣ Tool 호출 테스트</h2>
+            <div class="input-group">
+                <label for="toolSelect">Tool 선택:</label>
+                <select id="toolSelect" onchange="updateInputs()">
+                    <option value="">-- Tool을 선택하세요 --</option>
+                    <option value="MyFirstToolWorks">MyFirstToolWorks (파라미터 없음)</option>
+                    <option value="getAllUsers">getAllUsers (파라미터 없음)</option>
+                    <option value="getPaginatedUsers">getPaginatedUsers (pageNo,pageSize,properties,direction)</option>
+                    <option value="getUserById">getUserById (id)</option>
+                    <option value="getUserByUsername">getUserByUsername (username)</option>
+                    <option value="getUsersByPlatform">getUsersByPlatform (platform)</option>
+                    <option value="removeUserById">removeUserById (id)</option>
+                    <option value="removeUserByUsername">removeUserByUsername (username)</option>
+                    <option value="createUser">createUser (UserRequestDTO)</option>
+                    <option value="changeUserRole">changeUserRole (UserRequestDTO)</option>
+                    <option value="checkUserExists">checkUserExists (username)</option>
+                </select>
+            </div>
+            
+            <div class="input-group" id="paramsInput" style="display:none;">
+                <label for="paramsJson">파라미터(JSON):</label>
+                <textarea id="paramsJson" style="width:100%; height:120px; font-family: 'Courier New', monospace; font-size: 13px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;" placeholder='예시:
+{"id":"550e8400-e29b-41d4-a716-446655440000"}
+{"username":"hong123"}
+{"platform":"KAKAO"}
+{"pageNo":0,"pageSize":10,"properties":"createdAt","direction":"DESC"}
+{"username":"hong123","role":"ROLE_ADMIN"}
+{"username":"hong123","role":"ROLE_USER","platform":"KAKAO"}
+'></textarea>
+            </div>
+            <button onclick="callTool()" id="callToolBtn" disabled>Tool 호출</button>
+            <div class="output" id="tool-output">Tool을 선택하고 호출하세요.</div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let sessionId = null;
+
+        function updateStatus(status, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status ' + status;
+            statusEl.textContent = message;
+        }
+
+        function connectSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            console.log('[LOG] SSE 연결 시작');
+            updateStatus('connecting', '🔄 연결 중...');
+            document.getElementById('connection-info').textContent = 'SSE 연결을 시도하는 중...';
+
+            eventSource = new EventSource('/sse');
+
+            eventSource.onopen = () => {
+                console.log('[LOG] SSE 연결 열림');
+            };
+
+            eventSource.addEventListener('endpoint', (event) => {
+                console.log('[LOG] endpoint 이벤트 받음:', event.data);
+                const endpoint = event.data;
+                const urlParams = new URLSearchParams(endpoint.split('?')[1]);
+                sessionId = urlParams.get('sessionId');
+
+                console.log('[LOG] 추출된 sessionId:', sessionId);
+                updateStatus('connected', '✅ 연결됨 - Session ID: ' + sessionId);
+                document.getElementById('connection-info').textContent =
+                    '✅ SSE 연결 성공!\n\n' +
+                    'Endpoint: ' + endpoint + '\n' +
+                    'Session ID: ' + sessionId;
+
+                document.getElementById('listToolsBtn').disabled = false;
+                document.getElementById('callToolBtn').disabled = false;
+            });
+
+            eventSource.addEventListener('message', (event) => {
+                console.log('[LOG] SSE message 이벤트:', event.data);
+            });
+
+            eventSource.onerror = (error) => {
+                console.error('[LOG] SSE 에러:', error);
+                updateStatus('disconnected', '❌ 연결 실패');
+                document.getElementById('connection-info').textContent =
+                    '❌ 연결 오류 발생\n\n' +
+                    '서버가 실행 중인지 확인하세요: http://localhost:8080';
+                eventSource.close();
+                eventSource = null;
+                sessionId = null;
+                document.getElementById('listToolsBtn').disabled = true;
+                document.getElementById('callToolBtn').disabled = true;
+            };
+        }
+
+        function disconnect() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                sessionId = null;
+                updateStatus('disconnected', '❌ 연결 해제됨');
+                document.getElementById('connection-info').textContent = '연결이 해제되었습니다.';
+                document.getElementById('listToolsBtn').disabled = true;
+                document.getElementById('callToolBtn').disabled = true;
+            }
+        }
+
+        async function listTools() {
+            if (!sessionId) {
+                alert('먼저 SSE 연결을 해주세요!');
+                return;
+            }
+
+            document.getElementById('tools-output').textContent = '⏳ Tool 목록을 가져오는 중...';
+
+            const requestBody = {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/list'
+            };
+
+            try {
+                const response = await fetch(`/mcp/message?sessionId=${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                console.log('[LOG] 응답 받음:', response.status, response.statusText);
+                const data = await response.json();
+
+                const tools = (data.result && data.result.tools) || data.tools || [];
+                if (Array.isArray(tools) && tools.length) {
+                    let output = '📋 등록된 Tool 목록:\n\n';
+                    tools.forEach((tool, index) => {
+                        output += `${index + 1}. ${tool.name}\n`;
+                        if (tool.description) output += `   설명: ${tool.description}\n`;
+                        const props = tool.inputSchema && tool.inputSchema.properties
+                            ? Object.keys(tool.inputSchema.properties) : [];
+                        if (props.length) output += `   파라미터: ${props.join(', ')}\n`;
+                        output += '\n';
+                    });
+                    document.getElementById('tools-output').textContent = output;
+                } else {
+                    document.getElementById('tools-output').textContent =
+                        '❌ Tool 목록을 가져오지 못했습니다.\n\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                console.error('[LOG] 에러 발생:', error);
+                document.getElementById('tools-output').textContent =
+                    '❌ 오류 발생:\n\n' + error.message;
+            }
+            console.log('[LOG] listTools() 종료');
+        }
+
+        function updateInputs() {
+            const toolSelect = document.getElementById('toolSelect');
+            const paramsInput = document.getElementById('paramsInput');
+            const noArgTools = new Set(['MyFirstToolWorks','getAllUsers']);
+            if (!toolSelect.value || noArgTools.has(toolSelect.value)) {
+                paramsInput.style.display = 'none';
+            } else {
+                paramsInput.style.display = 'block';
+            }
+        }
+
+        async function callTool() {
+            if (!sessionId) {
+                alert('먼저 SSE 연결을 해주세요!');
+                return;
+            }
+
+            const toolSelect = document.getElementById('toolSelect');
+            const toolName = toolSelect.value;
+
+            if (!toolName) {
+                alert('Tool을 선택해주세요!');
+                return;
+            }
+
+            document.getElementById('tool-output').textContent = '⏳ Tool 호출 중...';
+
+            let args = {};
+            const paramsInput = document.getElementById('paramsInput');
+            const paramsJson = document.getElementById('paramsJson');
+            if (paramsInput.style.display !== 'none' && paramsJson.value.trim()) {
+                try {
+                    args = JSON.parse(paramsJson.value);
+                } catch (e) {
+                    document.getElementById('tool-output').textContent = '❌ 파라미터 JSON 파싱 오류: ' + e.message;
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(`/mcp/message?sessionId=${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 2,
+                        method: 'tools/call',
+                        params: {
+                            name: toolName,
+                            arguments: args
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                let output = `🎯 Tool 호출 결과: ${toolName}\n\n`;
+
+                if (data.result && data.result.content) {
+                    output += '✅ 결과:\n';
+                    data.result.content.forEach(item => {
+                        if (item.type === 'text') {
+                            output += item.text + '\n';
+                        }
+                    });
+                } else if (data.error) {
+                    output += '❌ 오류:\n' + JSON.stringify(data.error, null, 2);
+                } else {
+                    output += '전체 응답:\n' + JSON.stringify(data, null, 2);
+                }
+
+                document.getElementById('tool-output').textContent = output;
+            } catch (error) {
+                document.getElementById('tool-output').textContent =
+                    '❌ 오류 발생:\n\n' + error.message;
+            }
+        }
+
+        // 페이지 로드 시 자동 연결 (선택사항)
+        // window.onload = connectSSE;
+    </script>
+</body>
+</html>

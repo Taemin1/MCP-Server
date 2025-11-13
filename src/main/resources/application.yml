@@ -1,3 +1,5 @@
 spring:
   application:
     name: mcp
+  profiles:
+    active: dev
