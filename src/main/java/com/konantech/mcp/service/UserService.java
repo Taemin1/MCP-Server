@@ -1,7 +1,9 @@
 package com.konantech.mcp.service;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.ai.tool.annotation.Tool;
+
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,7 +18,7 @@ import com.konantech.mcp.entity.User;
 import com.konantech.mcp.enums.Platform;
 import com.konantech.mcp.repository.UserRepository;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @SuppressWarnings("unused")
 @Service
@@ -24,18 +26,11 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
     
-    private static final List<String> DATA = List.of(
-	    "Alpha", "Bravo", "Charlie", "Delta", "Echo",
-	    "Foxtrot", "Golf", "Hotel", "India", "Juliet"					
-	);
-    
-    private static final int PAGE_SIZE = 3;
-    
+     // @McpTool(name = "MyFirstToolWorks", description = "첫 번째 도구가 제대로 작동하는지 확인하는 도구입니다. MCP 서버 연결 확인이 필요할 때 이 도구를 사용하세요. 예: '첫 번째 도구가 작동하는지 보여줘', 'MCP 서버 연결 상태 확인해줘', '도구 테스트해줘'")
     @Tool(name = "MyFirstToolWorks", description = "첫 번째 도구가 제대로 작동하는지 확인하는 도구입니다. MCP 서버 연결 확인이 필요할 때 이 도구를 사용하세요. 예: '첫 번째 도구가 작동하는지 보여줘', 'MCP 서버 연결 상태 확인해줘', '도구 테스트해줘'")
     public void MyFirstToolWorks() {
     	System.out.println("My First Tool Works!!!!!!");
     }    	
-
 
     @Tool(name = "getAllUsers", description = "모든 사용자 정보를 조회합니다. 사용자 목록이 필요할 때 이 도구를 사용하세요. 예: '모든 사용자 목록 보여줘', '시스템에 등록된 사용자가 몇 명인지 알려줘', '전체 사용자 정보를 조회해줘'. 페이지네이션이 필요한 경우 getPaginatedUsers 도구를 대신 사용하세요.")
     public List<UserResponseDTO> findAllUsers() {

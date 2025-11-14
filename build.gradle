@@ -23,24 +23,19 @@ configurations {
 repositories {
     mavenCentral()
     maven { url = 'https://repo.spring.io/milestone' }
-    maven { url = 'https://repo.spring.io/snapshot' }
-    maven {
-        url = uri('https://central.sonatype.com/repository/maven-snapshots/')
-        mavenContent {
-            snapshotsOnly()
-        }
-    }
 }
 
 dependencyManagement {
     imports {
-        mavenBom 'org.springframework.ai:spring-ai-bom:1.0.0-SNAPSHOT'
+        mavenBom 'org.springframework.ai:spring-ai-bom:1.0.0-M4'
     }
 }
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.1.0-M4'
+    implementation 'org.springframework.ai:spring-ai-mcp-annotations:1.1.0-M4'
+    
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.postgresql:postgresql:42.7.3'
     compileOnly 'org.projectlombok:lombok'
