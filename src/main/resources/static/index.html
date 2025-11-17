@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MCP Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+        #logs { background: #000; padding: 20px; border-radius: 8px; margin-top: 20px; max-height: 500px; overflow-y: auto; }
+        .log { margin-bottom: 5px; }
+        .info { color: #4FC3F7; }
+        .success { color: #81C784; }
+        .error { color: #E57373; }
+        #toolsSection { margin-top: 20px; }
+        #toolsList { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 10px; }
+        .tool-card { background: #2d2d2d; padding: 15px; border-radius: 8px; border: 1px solid #444; }
+        .tool-card h3 { margin: 0 0 10px 0; color: #81C784; }
+        .tool-card p { margin: 0 0 10px 0; font-size: 14px; color: #aaa; }
+        .tool-card button { width: 100%; }
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
+        .modal-content { background: #2d2d2d; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
+        .modal-content h2 { margin-top: 0; }
+        .modal-content input, .modal-content textarea { width: 100%; padding: 8px; margin: 5px 0; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
+        .modal-content textarea { min-height: 100px; font-family: monospace; }
+        .param-group { margin-bottom: 15px; }
+        .param-group label { display: block; margin-bottom: 5px; color: #81C784; }
+    </style>
+</head>
+<body>
+<h1>MCP SSE Test Client</h1>
+<input type="text" id="url" value="http://localhost:8080" style="width:300px;padding:8px;">
+<button onclick="connect()">연결</button>
+<button onclick="disconnect()">연결 해제</button>
+
+<div id="toolsSection" style="display:none;">
+    <h2>사용 가능한 Tools</h2>
+    <div id="toolsList"></div>
+</div>
+
+<div id="logs"></div>
+
+<!-- Tool 호출 모달 -->
+<div id="toolModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalToolName"></h2>
+        <p id="modalToolDesc"></p>
+        <div id="modalParams"></div>
+        <button onclick="executeToolCall()">실행</button>
+        <button onclick="closeModal()">취소</button>
+    </div>
+</div>
+
+<script>
+    let eventSource = null;
+    let sessionId = null;
+    let availableTools = [];
+    let currentTool = null;
+
+    function log(msg, type = 'info') {
+        const logs = document.getElementById('logs');
+        const div = document.createElement('div');
+        div.className = `log ${type}`;
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logs.appendChild(div);
+        logs.scrollTop = logs.scrollHeight;
+    }
+
+    async function sendMCP(method, params = {}) {
+        if (!sessionId) {
+            log('❌ Session ID 없음', 'error');
+            return;
+        }
+
+        const url = `${document.getElementById('url').value}/mcp/message?sessionId=${sessionId}`;
+        const body = {
+            jsonrpc: "2.0",
+            method: method,
+            ...(Object.keys(params).length > 0 && { params }),
+            ...(method !== 'notifications/initialized' && { id: Date.now() })
+        };
+
+        log(`📤 ${method}`, 'info');
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'mcp-protocol-version': '2024-11-05'
+            },
+            body: JSON.stringify(body)
+        });
+
+        log(`📨 응답: ${res.status}`, res.ok ? 'success' : 'error');
+    }
+
+    async function init() {
+        await sendMCP('initialize', {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "Test", version: "1.0" }
+        });
+        await sendMCP('notifications/initialized');
+        await sendMCP('tools/list');
+    }
+
+    function connect() {
+        const base = document.getElementById('url').value;
+        log(`🔄 ${base}/mcp 연결 중...`, 'info');
+
+        eventSource = new EventSource(`${base}/mcp`);
+
+        eventSource.onopen = () => {
+            log('✅ SSE 연결 성공', 'success');
+        };
+
+        eventSource.onmessage = (e) => {
+            log(`📨 [message] ${e.data}`, 'info');
+        };
+
+        eventSource.addEventListener('endpoint', (e) => {
+            log(`🔗 [endpoint] ${e.data}`, 'info');
+
+            // Session ID 추출
+            const match = e.data.match(/sessionId=([a-f0-9-]+)/i);
+            if (match) {
+                sessionId = match[1];
+                log(`🔑 Session ID: ${sessionId}`, 'success');
+                init();
+            } else {
+                log(`⚠️ Session ID 추출 실패`, 'error');
+            }
+        });
+
+        eventSource.addEventListener('message', (e) => {
+            log(`📦 [message 이벤트] ${e.data.substring(0, 200)}`, 'info');
+
+            try {
+                const data = JSON.parse(e.data);
+                if (data.result && data.result.tools) {
+                    availableTools = data.result.tools;
+                    log(`✅ 도구 ${data.result.tools.length}개 발견!`, 'success');
+                    displayTools(data.result.tools);
+                } else if (data.result && data.result.content) {
+                    // Tool 호출 결과
+                    log(`✅ Tool 실행 결과:`, 'success');
+                    data.result.content.forEach(c => {
+                        if (c.type === 'text') {
+                            log(`  ${c.text}`, 'success');
+                        }
+                    });
+                }
+            } catch (err) {}
+        });
+
+        eventSource.onerror = () => {
+            log('❌ 연결 오류', 'error');
+        };
+    }
+
+    function disconnect() {
+        if (eventSource) {
+            eventSource.close();
+            sessionId = null;
+            log('🔌 연결 종료', 'info');
+            document.getElementById('toolsSection').style.display = 'none';
+        }
+    }
+
+    function displayTools(tools) {
+        const toolsList = document.getElementById('toolsList');
+        toolsList.innerHTML = '';
+        document.getElementById('toolsSection').style.display = 'block';
+
+        tools.forEach(tool => {
+            const card = document.createElement('div');
+            card.className = 'tool-card';
+
+            const name = document.createElement('h3');
+            name.textContent = tool.name;
+
+            const desc = document.createElement('p');
+            desc.textContent = tool.description || '설명 없음';
+
+            const btn = document.createElement('button');
+            btn.textContent = '호출';
+            btn.onclick = () => openToolModal(tool);
+
+            card.appendChild(name);
+            card.appendChild(desc);
+            card.appendChild(btn);
+            toolsList.appendChild(card);
+        });
+    }
+
+    function openToolModal(tool) {
+        currentTool = tool;
+        document.getElementById('modalToolName').textContent = tool.name;
+        document.getElementById('modalToolDesc').textContent = tool.description || '';
+
+        const paramsDiv = document.getElementById('modalParams');
+        paramsDiv.innerHTML = '';
+
+        if (tool.inputSchema && tool.inputSchema.properties) {
+            const props = tool.inputSchema.properties;
+            const required = tool.inputSchema.required || [];
+
+            Object.keys(props).forEach(key => {
+                const prop = props[key];
+                const paramGroup = document.createElement('div');
+                paramGroup.className = 'param-group';
+
+                const label = document.createElement('label');
+                label.textContent = `${key}${required.includes(key) ? ' *' : ''} (${prop.type})`;
+
+                let input;
+                if (prop.type === 'object' || prop.type === 'array') {
+                    input = document.createElement('textarea');
+                    input.placeholder = `JSON 형식으로 입력 (예: ${prop.type === 'array' ? '[]' : '{}'})`;
+                } else {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                }
+
+                input.id = `param_${key}`;
+                input.placeholder = prop.description || '';
+
+                paramGroup.appendChild(label);
+                paramGroup.appendChild(input);
+                paramsDiv.appendChild(paramGroup);
+            });
+        }
+
+        document.getElementById('toolModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('toolModal').style.display = 'none';
+        currentTool = null;
+    }
+
+    async function executeToolCall() {
+        if (!currentTool) {
+            log('❌ Tool 정보가 없습니다', 'error');
+            return;
+        }
+
+        const params = {};
+        const paramsDiv = document.getElementById('modalParams');
+        const inputs = paramsDiv.querySelectorAll('input, textarea');
+
+        let hasError = false;
+
+        inputs.forEach(input => {
+            if (hasError) return;
+
+            const key = input.id.replace('param_', '');
+            const value = input.value.trim();
+
+            if (value) {
+                const prop = currentTool.inputSchema?.properties?.[key];
+                if (!prop) return;
+
+                if (prop.type === 'object' || prop.type === 'array') {
+                    try {
+                        params[key] = JSON.parse(value);
+                    } catch (e) {
+                        log(`❌ ${key} JSON 파싱 오류: ${e.message}`, 'error');
+                        hasError = true;
+                        return;
+                    }
+                } else if (prop.type === 'number') {
+                    params[key] = Number(value);
+                } else if (prop.type === 'boolean') {
+                    params[key] = value === 'true' || value === '1';
+                } else {
+                    params[key] = value;
+                }
+            }
+        });
+
+        if (hasError) return;
+
+        const toolName = currentTool.name;
+        closeModal();
+
+        log(`🔧 Tool 호출: ${toolName}`, 'info');
+        await sendMCP('tools/call', {
+            name: toolName,
+            arguments: params
+        });
+    }
+
+    // 모달 외부 클릭시 닫기
+    window.onclick = function(event) {
+        const modal = document.getElementById('toolModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+
+    log('🎉 준비 완료', 'success');
+</script>
+</body>
+</html>
