@@ -1,6 +1,7 @@
 package com.konantech.mcp;
 
 import com.konantech.mcp.service.MechanicService;
+import com.konantech.mcp.service.NewService;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
