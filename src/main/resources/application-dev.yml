@@ -2,16 +2,28 @@ server:
   port: 9090
 
 spring:
-  main:
-    banner-mode: LOG
+  application:
+    name: mcp
   ai:
     mcp:
       server:
         name: mcp
-        version: 0.0.1
+        version: 1.0.0
+        protocol: STREAMABLE
         type: SYNC
-        sse-endpoint: /sse
-        sse-message-endpoint: /mcp/message
+        instructions: "Personal TO-DO List service via MCP"
+        tool-callback-converter: true
+        tool-change-notification: true
+        streamable-http:
+          mcp-endpoint: /mcp
+          keep-alive-interval: 120s
+
+        capabilities:
+          tool: true
+          resource: true
+          prompt: true
+          completion: true
+
         annotation-scanner:
           enabled: true  # Enable/disable annotation scanning
   datasource:
@@ -25,12 +37,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-
 logging:
   level:
-    root: DEBUG
-    org.springframework: DEBUG
     org.springframework.ai.mcp: DEBUG
-    com.zaxxer.hikari: OFF
-  pattern:
-    console: "%msg%n"

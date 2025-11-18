@@ -27,17 +27,18 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom 'org.springframework.ai:spring-ai-bom:1.0.0-M4'
+        mavenBom 'org.springframework.ai:spring-ai-bom:1.1.0-M4'
     }
 }
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.1.0-M4'
-    implementation 'org.springframework.ai:spring-ai-mcp-annotations:1.1.0-M4'
     
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.postgresql:postgresql:42.7.3'
+    
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

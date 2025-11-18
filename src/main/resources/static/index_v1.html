@@ -205,338 +205,264 @@
             <div class="output" id="tool-output">Tool을 선택하고 호출하세요.</div>
         </div>
     </div>
-	    
-	<script>
-	    let eventSource = null;
-	    let sessionId = null;
-	    let rpcEndpointUrl = null; // use server-provided endpoint
-	
-	    function updateStatus(status, message) {
-	        const statusEl = document.getElementById('status');
-	        statusEl.className = 'status ' + status;
-	        statusEl.textContent = message;
-	    }
+        
+    <script>
+        // Streamable-HTTP client replacing SSE
+        let reader = null;
+        let abortController = null;
+        let sessionId = null;
+        let rpcEndpointUrl = null; // full endpoint (may include sessionId)
+        let baseUrl = window.location.origin; // default to same origin
+        let closed = false;
 
-	    // Helper: safely parse response body to JSON, handle empty/invalid bodies
-	    async function safeParseJSON(response) {
-	        try {
-	            const text = await response.text();
-	            if (!text) return { __emptyBody: true, status: response.status };
-	            try {
-	                return JSON.parse(text);
-	            } catch (e) {
-	                return { __parseError: true, status: response.status, rawText: text };
-	            }
-	        } catch (e) {
-	            return { __readError: true, error: e.message };
-	        }
-	    }
-	
-	    function connectSSE() {
-	        if (eventSource) {
-	            eventSource.close();
-	        }
-	
-	        console.log('[LOG] SSE 연결 시작');
-	        updateStatus('connecting', '🔄 연결 중...');
-	        document.getElementById('connection-info').textContent = 'SSE 연결을 시도하는 중...';
-	
-	        eventSource = new EventSource('/sse');
-	
-	        eventSource.onopen = () => {
-	            console.log('[LOG] SSE 연결 열림');
-	        };
-	
-	        eventSource.addEventListener('endpoint', (event) => {
-	            console.log('[LOG] endpoint 이벤트 받음:', event.data);
-	            const endpoint = event.data;
-	
-	            // store full RPC endpoint URL (includes \?sessionId=...)
-	            rpcEndpointUrl = endpoint;
-	
-	            // keep extracting sessionId for display only
-	            const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
-	            sessionId = urlParams.get('sessionId');
-	
-	            console.log('[LOG] 추출된 sessionId:', sessionId);
-	            console.log('[LOG] RPC endpoint URL:', rpcEndpointUrl);
-	            updateStatus('connected', '✅ 연결됨 - Session ID: ' + sessionId);
-	            document.getElementById('connection-info').textContent =
-	                '✅ SSE 연결 성공!\n\n' +
-	                'Endpoint: ' + endpoint + '\n' +
-	                'Session ID: ' + sessionId;
-	
-	            document.getElementById('listToolsBtn').disabled = false;
-	            document.getElementById('callToolBtn').disabled = false;
-	        });
+        function updateStatus(status, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status ' + status;
+            statusEl.textContent = message;
+        }
 
-	        eventSource.addEventListener('message', (e) => {
-	            console.log('[LOG] SSE message 이벤트:', e.data);
+        async function safeParseJSON(response) {
+            try {
+                const text = await response.text();
+                if (!text) return { __emptyBody: true, status: response.status };
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    return { __parseError: true, status: response.status, rawText: text };
+                }
+            } catch (e) {
+                return { __readError: true, error: e.message };
+            }
+        }
 
-           		const data = JSON.parse(e.data);
-           		const tools = (data.result && data.result.tools) || data.tools || [];
-   	            if (Array.isArray(tools) && tools.length) {
-   	                let output = '📋 등록된 Tool 목록:\n\n';
-   	                tools.forEach((tool, index) => {
-   	                    output += `${index + 1}. ${tool.name}\n`;
-   	                    if (tool.description) output += `   설명: ${tool.description}\n`;
-   	                    const props = tool.inputSchema && tool.inputSchema.properties
-   	                        ? Object.keys(tool.inputSchema.properties) : [];
-   	                    if (props.length) output += `   파라미터: ${props.join(', ')}\n`;
-   	                    output += '\n';
-   	                });
-   	                document.getElementById('tools-output').textContent = output;
-   	            } else {
-   	                document.getElementById('tools-output').textContent =
-   	                    '❌ Tool 목록을 가져오지 못했습니다.\n\n' + JSON.stringify(data, null, 2);
-   	            }
-   	            
-	            
-	            if (!data) {
-	                document.getElementById('tools-output').textContent =
-	                    `❌ 응답 본문이 비어있습니다. HTTP 상태: ${response.status} ${response.statusText}`;
-	                return;
-	            }
-	            if (data.__parseError) {
-	                document.getElementById('tools-output').textContent =
-	                    `❌ JSON 파싱 오류. HTTP 상태: ${data.status}\n\n원본 응답:\n` + data.rawText;
-	                return;
-	            }
-	
+        async function connectSSE() {
+            // open streamable HTTP POST to /api/mcp
+            disconnect();
+            updateStatus('connecting', '🔄 연결 중...');
+            document.getElementById('connection-info').textContent = '스트리밍 연결을 시도하는 중...';
+            closed = false;
+            abortController = new AbortController();
+
+            try {
+                const res = await fetch(`${baseUrl}/api/mcp`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'mcp-protocol-version': '2024-11-05'
+                    },
+                    body: JSON.stringify({}),
+                    signal: abortController.signal
+                });
+
+                if (!res.body) {
+                    updateStatus('disconnected', '❌ 서버가 스트리밍을 제공하지 않습니다');
+                    document.getElementById('connection-info').textContent = '서버가 스트리밍 응답을 제공하지 않습니다.';
+                    return;
+                }
+
+                updateStatus('connected', '✅ 스트림 연결됨');
+                document.getElementById('connection-info').textContent = `✅ 스트림 연결됨 (HTTP ${res.status})`;
+
+                reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (!closed) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const lines = buffer.split(/\r?\n/);
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+                        try {
+                            const msg = JSON.parse(trimmed);
+                            handleStreamMessage(msg);
+                        } catch (e) {
+                            console.log('[LOG] non-json chunk:', trimmed.slice(0,200));
+                        }
+                    }
+                }
+
+                updateStatus('disconnected', '🔌 서버가 스트림을 닫았습니다');
+                document.getElementById('connection-info').textContent = '서버가 스트림을 닫았습니다.';
+            } catch (e) {
+                if (e.name === 'AbortError') {
+                    updateStatus('disconnected', '🔌 연결 중단됨');
+                    document.getElementById('connection-info').textContent = '연결이 중단되었습니다.';
+                } else {
+                    updateStatus('disconnected', '❌ 연결 오류');
+                    document.getElementById('connection-info').textContent = '연결 오류: ' + e.message;
+                }
+            } finally {
+                cleanupStream();
+            }
+        }
+
+        function handleStreamMessage(msg) {
+            // endpoint message contains URL the server wants us to use for RPC (may include sessionId)
+            if (msg.endpoint) {
+                rpcEndpointUrl = msg.endpoint;
+                // extract sessionId
+                try {
+                    const urlObj = new URL(rpcEndpointUrl, baseUrl);
+                    sessionId = urlObj.searchParams.get('sessionId');
+                } catch (e) {
+                    const m = String(rpcEndpointUrl).match(/sessionId=([a-f0-9-]+)/i);
+                    sessionId = m ? m[1] : null;
+                }
+                updateStatus('connected', '✅ 연결됨 - Session ID: ' + (sessionId || 'unknown'));
+                document.getElementById('connection-info').textContent = 'Endpoint: ' + rpcEndpointUrl + '\nSession ID: ' + sessionId;
+                document.getElementById('listToolsBtn').disabled = false;
+                document.getElementById('callToolBtn').disabled = false;
+                // send initialize flow
+                init().catch(e => console.warn('init error', e));
+                return;
+            }
+
+            // handle JSON-RPC messages
+            if (msg.jsonrpc || msg.method || msg.result || msg.error) {
+                // if tools list result, update tools output
+                const tools = (msg.result && msg.result.tools) || msg.tools || [];
+                if (Array.isArray(tools) && tools.length) {
+                    let output = '📋 등록된 Tool 목록:\n\n';
+                    tools.forEach((tool, index) => {
+                        output += `${index + 1}. ${tool.name}\n`;
+                        if (tool.description) output += `   설명: ${tool.description}\n`;
+                        const props = tool.inputSchema && tool.inputSchema.properties
+                            ? Object.keys(tool.inputSchema.properties) : [];
+                        if (props.length) output += `   파라미터: ${props.join(', ')}\n`;
+                        output += '\n';
+                    });
+                    document.getElementById('tools-output').textContent = output;
+                }
+                // also log raw
+                console.log('[LOG] RPC message:', msg);
+                return;
+            }
+
+            console.log('[LOG] stream message:', msg);
+        }
+
+        function cleanupStream() {
+            if (reader) {
+                try { reader.cancel(); } catch(_) {}
+                reader = null;
+            }
+            if (abortController) {
+                try { abortController.abort(); } catch(_) {}
+                abortController = null;
+            }
+        }
+
+        function disconnect() {
+            closed = true;
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+            if (reader) {
+                try { reader.cancel(); } catch(_) {}
+                reader = null;
+            }
+            sessionId = null;
+            rpcEndpointUrl = null;
+            updateStatus('disconnected', '❌ 연결 해제됨');
+            document.getElementById('connection-info').textContent = '연결이 해제되었습니다.';
+            document.getElementById('listToolsBtn').disabled = true;
+            document.getElementById('callToolBtn').disabled = true;
+        }
+
+        async function init() {
+            await sendRPC('initialize', {
+                protocolVersion: '2024-11-05',
+                capabilities: {},
+                clientInfo: { name: 'Test', version: '1.0' }
             });
-	
-	        eventSource.onerror = (error) => {
-	            console.error('[LOG] SSE 에러:', error);
-	            updateStatus('disconnected', '❌ 연결 실패');
-	            document.getElementById('connection-info').textContent =
-	                '❌ 연결 오류 발생\n\n' +
-	                '서버가 실행 중인지 확인하세요.';
-	            eventSource.close();
-	            eventSource = null;
-	            sessionId = null;
-	            rpcEndpointUrl = null;
-	            document.getElementById('listToolsBtn').disabled = true;
-	            document.getElementById('callToolBtn').disabled = true;
-	        };
-	    }
-	
-	    function disconnect() {
-	        if (eventSource) {
-	            eventSource.close();
-	            eventSource = null;
-	            sessionId = null;
-	            rpcEndpointUrl = null;
-	            updateStatus('disconnected', '❌ 연결 해제됨');
-	            document.getElementById('connection-info').textContent = '연결이 해제되었습니다.';
-	            document.getElementById('listToolsBtn').disabled = true;
-	            document.getElementById('callToolBtn').disabled = true;
-	        }
-	    }
-	    
-	    async function init(method='initialize') {
-	    	const url = rpcEndpointUrl || `/mcp/message?sessionId=${encodeURIComponent(sessionId)}`;
-	    	const body = {
-	    			jsonrpc: '2.0',
-	    			method: 'initialize',
-	    			protocolVersion: '2024-11-05',
-	    			capabilities: {},
-	    			clientInfo: { name: 'Test', version: '1.0' },
-	    			...(method !== 'notifications/initialized' && { id: Date.now() })
-	    	}
-	    	try {
-		    	const res = await fetch(url, {
-	        		method: 'POST',
-	        		headers: { 'Content-Type': 'application/json' },
-	        		body: JSON.stringify(body)
-	        	});
-	        	// ignore body if empty
-	        	await safeParseJSON(res);
-	    	} catch (e) {
-	    		console.warn('[LOG] init error', e);
-	    	}
-	    }
-	    
-	    async function notificationsInitialized(method) {
-	    	const url = rpcEndpointUrl || `/mcp/message?sessionId=${encodeURIComponent(sessionId)}`;
-	    	const body = {
-	    			jsonrpc: '2.0',
-	    			method: method,
-	    			...(method !== 'notifications/initialized' && { id: Date.now() })
-	    	}
-	    	try {
-		    	const res = await fetch(url, {
-	        		method: 'POST',
-	        		headers: { 'Content-Type': 'application/json' },
-	        		body: JSON.stringify(body)
-	        	});
-	        	await safeParseJSON(res);
-	    	} catch (e) {
-	    		console.warn('[LOG] notificationsInitialized error', e);
-	    	}
-	    }
-	
-	    async function listTools() {
-	        if (!sessionId) {
-	            alert('먼저 SSE 연결을 해주세요!');
-	            return;
-	        }
-	
-	        document.getElementById('tools-output').textContent = '⏳ Tool 목록을 가져오는 중...';
-	
-	        const requestBody = {
-	            jsonrpc: '2.0',
-	            id: Date.now(),
-	            method: 'tools/list'
-	        };
-	
-	        const url = rpcEndpointUrl || `/mcp/message?sessionId=${encodeURIComponent(sessionId)}`;
-	        console.log('[LOG] tools/list POST ->', url);
-	
-	        try {
-	        	await init();
-	        	await notificationsInitialized('notifications/initialized');
-	        	
-	            const response = await fetch(url, {
-	                method: 'POST',
-	                headers: { 'Content-Type': 'application/json' },
-	                body: JSON.stringify(requestBody)
-	            });
-	
-	            console.log('[LOG] 응답 받음:', response.status, response.statusText);
-	            const data = await safeParseJSON(response);
-	            console.log('[LOG] 파싱된 응답 데이터:', data);
-	            
-	            eventSource.addEventListener('message', (e) => {
-	           		const data = JSON.parse(e.data);
-	           		/*
-	           		const tools = (data.result && data.result.tools) || data.tools || [];
-	   	            if (Array.isArray(tools) && tools.length) {
-	   	                let output = '📋 등록된 Tool 목록:\n\n';
-	   	                tools.forEach((tool, index) => {
-	   	                    output += `${index + 1}. ${tool.name}\n`;
-	   	                    if (tool.description) output += `   설명: ${tool.description}\n`;
-	   	                    const props = tool.inputSchema && tool.inputSchema.properties
-	   	                        ? Object.keys(tool.inputSchema.properties) : [];
-	   	                    if (props.length) output += `   파라미터: ${props.join(', ')}\n`;
-	   	                    output += '\n';
-	   	                });
-	   	                document.getElementById('tools-output').textContent = output;
-	   	            } else {
-	   	                document.getElementById('tools-output').textContent =
-	   	                    '❌ Tool 목록을 가져오지 못했습니다.\n\n' + JSON.stringify(data, null, 2);
-	   	            } */
-	   	            
-		            
-		            if (!data) {
-		                document.getElementById('tools-output').textContent =
-		                    `❌ 응답 본문이 비어있습니다. HTTP 상태: ${response.status} ${response.statusText}`;
-		                return;
-		            }
-		            if (data.__parseError) {
-		                document.getElementById('tools-output').textContent =
-		                    `❌ JSON 파싱 오류. HTTP 상태: ${data.status}\n\n원본 응답:\n` + data.rawText;
-		                return;
-		            }
-					
-	            });
-	            
-	        } catch (error) {
-	            console.error('[LOG] 에러 발생:', error);
-	            document.getElementById('tools-output').textContent =
-	                '❌ 오류 발생:\n\n' + (error.message || String(error));
-	        }
-	        console.log('[LOG] listTools() 종료');
-	    }
-	
-	    function updateInputs() {
-	        const toolSelect = document.getElementById('toolSelect');
-	        const paramsInput = document.getElementById('paramsInput');
-	        const noArgTools = new Set(['MyFirstToolWorks','getAllUsers']);
-	        if (!toolSelect.value || noArgTools.has(toolSelect.value)) {
-	            paramsInput.style.display = 'none';
-	        } else {
-	            paramsInput.style.display = 'block';
-	        }
-	    }
-	
-	    async function callTool() {
-	        if (!sessionId) {
-	            alert('먼저 SSE 연결을 해주세요!');
-	            return;
-	        }
-	
-	        const toolSelect = document.getElementById('toolSelect');
-	        const toolName = toolSelect.value;
-	
-	        if (!toolName) {
-	            alert('Tool을 선택해주세요!');
-	            return;
-	        }
-	
-	        document.getElementById('tool-output').textContent = '⏳ Tool 호출 중...';
-	
-	        let args = {};
-	        const paramsInput = document.getElementById('paramsInput');
-	        const paramsJson = document.getElementById('paramsJson');
-	        if (paramsInput.style.display !== 'none' && paramsJson.value.trim()) {
-	            try {
-	                args = JSON.parse(paramsJson.value);
-	            } catch (e) {
-	                document.getElementById('tool-output').textContent = '❌ 파라미터 JSON 파싱 오류: ' + e.message;
-	                return;
-	            }
-	        }
-	
-	        const url = rpcEndpointUrl || `/mcp/message?sessionId=${encodeURIComponent(sessionId)}`;
-	        console.log('[LOG] tools/call POST ->', url);
-	
-	        try {
-	            const response = await fetch(url, {
-	                method: 'POST',
-	                headers: { 'Content-Type': 'application/json' },
-	                body: JSON.stringify({
-	                    jsonrpc: '2.0',
-	                    id: 2,
-	                    method: 'tools/call',
-	                    params: { name: toolName, arguments: args }
-	                })
-	            });
-				console.log('[LOG] 응답 받음:', response.status, response.statusText);
-	            const data = await safeParseJSON(response);
-	
-	            if (!data) {
-	                document.getElementById('tool-output').textContent =
-	                    `❌ 응답 본문이 비어있습니다. HTTP 상태: ${response.status} ${response.statusText}`;
-	                return;
-	            }
-	            if (data.__parseError) {
-	                document.getElementById('tool-output').textContent =
-	                    `❌ JSON 파싱 오류. HTTP 상태: ${data.status}\n\n원본 응답:\n` + data.rawText;
-	                return;
-	            }
-	
-	            let output = `🎯 Tool 호출 결과: ${toolName}\n\n`;
-	
-	            if (data.result && data.result.content) {
-	                output += '✅ 결과:\n';
-	                data.result.content.forEach(item => {
-	                    if (item.type === 'text') {
-	                        output += item.text + '\n';
-	                    }
-	                });
-	            } else if (data.error) {
-	                output += '❌ 오류:\n' + JSON.stringify(data.error, null, 2);
-	            } else {
-	                output += '전체 응답:\n' + JSON.stringify(data, null, 2);
-	            }
-	
-	            document.getElementById('tool-output').textContent = output;
-	        } catch (error) {
-	            document.getElementById('tool-output').textContent =
-	                '❌ 오류 발생:\n\n' + (error.message || String(error));
-	        }
-	    }
-	</script>
+            await sendRPC('notifications/initialized');
+        }
+
+        async function sendRPC(method, params = {}) {
+            const url = rpcEndpointUrl || `${baseUrl}/api/mcp?sessionId=${encodeURIComponent(sessionId || '')}`;
+            const body = {
+                jsonrpc: '2.0',
+                method: method,
+                ...(Object.keys(params).length && { params }),
+                ...(method !== 'notifications/initialized' && { id: Date.now() })
+            };
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                return await safeParseJSON(res);
+            } catch (e) {
+                console.warn('[LOG] sendRPC error', e);
+                return null;
+            }
+        }
+
+        async function listTools() {
+            if (!sessionId) { alert('먼저 연결하세요.'); return; }
+            document.getElementById('tools-output').textContent = '⏳ Tool 목록을 가져오는 중...';
+            try {
+                await init();
+                await sendRPC('tools/list', {});
+                // response will arrive on stream and handleStreamMessage will update UI
+            } catch (e) {
+                document.getElementById('tools-output').textContent = '❌ 오류 발생:\n' + (e.message || String(e));
+            }
+        }
+
+        function updateInputs() {
+            const toolSelect = document.getElementById('toolSelect');
+            const paramsInput = document.getElementById('paramsInput');
+            const noArgTools = new Set(['MyFirstToolWorks','getAllUsers']);
+            if (!toolSelect.value || noArgTools.has(toolSelect.value)) {
+                paramsInput.style.display = 'none';
+            } else {
+                paramsInput.style.display = 'block';
+            }
+        }
+
+        async function callTool() {
+            if (!sessionId) { alert('먼저 연결하세요.'); return; }
+            const toolSelect = document.getElementById('toolSelect');
+            const toolName = toolSelect.value;
+            if (!toolName) { alert('Tool을 선택하세요'); return; }
+            document.getElementById('tool-output').textContent = '⏳ Tool 호출 중...';
+            let args = {};
+            const paramsInput = document.getElementById('paramsInput');
+            const paramsJson = document.getElementById('paramsJson');
+            if (paramsInput.style.display !== 'none' && paramsJson.value.trim()) {
+                try { args = JSON.parse(paramsJson.value); } catch (e) { document.getElementById('tool-output').textContent = '❌ 파라미터 JSON 파싱 오류: ' + e.message; return; }
+            }
+
+            try {
+                const resp = await sendRPC('tools/call', { name: toolName, arguments: args });
+                if (!resp) { document.getElementById('tool-output').textContent = '❌ 응답 없음'; return; }
+                if (resp.__parseError) { document.getElementById('tool-output').textContent = '❌ JSON 파싱 오류:\n' + resp.rawText; return; }
+
+                let output = `🎯 Tool 호출 결과: ${toolName}\n\n`;
+                if (resp.result && resp.result.content) {
+                    output += '✅ 결과:\n';
+                    resp.result.content.forEach(item => { if (item.type === 'text') output += item.text + '\n'; });
+                } else if (resp.error) {
+                    output += '❌ 오류:\n' + JSON.stringify(resp.error, null, 2);
+                } else {
+                    output += '전체 응답:\n' + JSON.stringify(resp, null, 2);
+                }
+                document.getElementById('tool-output').textContent = output;
+            } catch (e) {
+                document.getElementById('tool-output').textContent = '❌ 오류 발생:\n' + (e.message || String(e));
+            }
+        }
+    </script>
 
 </body>
 </html>
