@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.konantech.mcp.repository.TodoRepository">
+
+  <!-- resultMap -> map DB columns to entity properties -->
+  <resultMap id="TodoResultMap" type="com.konantech.mcp.entity.Todo">
+    <id column="id" property="id" javaType="java.util.UUID"/>
+    <result column="title" property="title"/>
+    <result column="description" property="description"/>
+    <result column="is_done" property="isDone" javaType="java.lang.Boolean"/>
+    <result column="priority" property="priority" javaType="java.lang.Integer"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+
+  <!-- corresponds to: List<Todo> findAll() -->
+  <select id="findAll" resultMap="TodoResultMap">
+    SELECT id, title, description, is_done, priority, created_at, updated_at
+    FROM todo_list
+    ORDER BY created_at DESC
+  </select>
+
+  <!-- corresponds to: Todo findById(UUID id) -->
+  <select id="findById" parameterType="java.util.UUID" resultMap="TodoResultMap">
+    SELECT id, title, description, is_done, priority, created_at, updated_at
+    FROM todo_list
+    WHERE id = #{id}
+  </select>
+
+  <!-- corresponds to: boolean existsByTitle(String title) -->
+  <select id="existsByTitle" parameterType="java.lang.String" resultType="boolean">
+    SELECT EXISTS (
+      SELECT 1 FROM todo_list WHERE title = #{title}
+    )
+  </select>
+
+  <!-- corresponds to: List<Todo> findTop3ByOrderByCreatedAtDesc() -->
+  <select id="findTop3ByOrderByCreatedAtDesc" resultMap="TodoResultMap">
+    SELECT id, title, description, is_done, priority, created_at, updated_at
+    FROM todo_list
+    ORDER BY created_at DESC
+    LIMIT 3
+  </select>
+
+  <!-- corresponds to: List<Todo> findTop5ByCreatedAtBetweenOrderByCreatedAtDesc(start, end) -->
+  <select id="findTop5ByCreatedAtBetweenOrderByCreatedAtDesc" resultMap="TodoResultMap"
+          parameterType="map">
+    SELECT id, title, description, is_done, priority, created_at, updated_at
+    FROM todo_list
+    WHERE created_at BETWEEN #{startOfDay} AND #{endOfDay}
+    ORDER BY created_at DESC
+    LIMIT 5
+  </select>
+
+  <!-- corresponds to: void deleteById(UUID id) -->
+  <delete id="deleteById" parameterType="java.util.UUID">
+    DELETE FROM todo_list WHERE id = #{id}
+  </delete>
+
+  <!-- corresponds to: void insertTodo(Todo todo) -->
+  <insert id="insertTodo" parameterType="com.konantech.mcp.entity.Todo">
+    INSERT INTO todo_list (id, title, description, is_done, priority, created_at, updated_at)
+    VALUES (#{id}, #{title}, #{description}, #{isDone}, #{priority}, #{createdAt}, #{updatedAt})
+  </insert>
+
+  <!-- corresponds to: void updateTodo(Todo todo) -->
+  <update id="updateTodo" parameterType="com.konantech.mcp.entity.Todo">
+    UPDATE todo_list
+    SET title = #{title},
+        description = #{description},
+        is_done = #{isDone},
+        priority = #{priority},
+        updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
+</mapper>
+

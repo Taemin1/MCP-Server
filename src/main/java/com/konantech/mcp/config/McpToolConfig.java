@@ -1,7 +1,5 @@
 package com.konantech.mcp.config;
 
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -18,7 +16,7 @@ public class McpToolConfig implements WebMvcConfigurer {
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
-    
+    /*
     @Bean
     public FilterRegistrationBean<RawJsonLoggingFilter> loggingFilter() {
         FilterRegistrationBean<RawJsonLoggingFilter> registrationBean = new FilterRegistrationBean<>();
@@ -26,5 +24,6 @@ public class McpToolConfig implements WebMvcConfigurer {
         registrationBean.addUrlPatterns("/*");
         return registrationBean;
     }
+    */
     
 }

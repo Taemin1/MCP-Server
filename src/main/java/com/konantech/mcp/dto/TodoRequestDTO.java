@@ -13,8 +13,10 @@ import lombok.Setter;
 @AllArgsConstructor
 public class TodoRequestDTO {
     private UUID id;
+
     private String title;
     private String description;
     private Boolean isDone;
     private Integer priority;
 }
+

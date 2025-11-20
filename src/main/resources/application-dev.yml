@@ -12,7 +12,7 @@ spring:
         protocol: STREAMABLE
         type: SYNC
         instructions: "Personal TO-DO List service via MCP"
-        tool-callback-converter: true
+#        tool-callback-converter: true
         tool-change-notification: true
         streamable-http:
           mcp-endpoint: /mcp
@@ -20,12 +20,13 @@ spring:
 
         capabilities:
           tool: true
-          resource: true
-          prompt: true
-          completion: true
+          resource: false
+          prompt: false
+          completion: false
 
         annotation-scanner:
           enabled: true  # Enable/disable annotation scanning
+
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/postgres
@@ -40,3 +41,9 @@ spring:
 logging:
   level:
     org.springframework.ai.mcp: DEBUG
+
+
+mybatis:
+  mapper-locations: classpath*:mappers/*.xml
+  type-aliases-package: com.konantech.mcp.model,com.konantech.mcp.entity
+  type-handlers-package: com.konantech.mcp.mybatis
