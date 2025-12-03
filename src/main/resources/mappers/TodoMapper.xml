@@ -1,18 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.konantech.mcp.repository.TodoRepository">
+<mapper namespace="com.konantech.mcp.mapper.TodoMapper">
 
   <!-- resultMap -> map DB columns to entity properties -->
-  <resultMap id="TodoResultMap" type="com.konantech.mcp.entity.Todo">
-    <id column="id" property="id" javaType="java.util.UUID"/>
-    <result column="title" property="title"/>
-    <result column="description" property="description"/>
-    <result column="is_done" property="isDone" javaType="java.lang.Boolean"/>
-    <result column="priority" property="priority" javaType="java.lang.Integer"/>
-    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
-    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
-  </resultMap>
+    <resultMap id="TodoResultMap" type="com.konantech.mcp.domain.Todo">
+        <id column="id" property="id" javaType="java.util.UUID"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="is_done" property="isDone" javaType="java.lang.Boolean"/>
+        <result column="priority" property="priority" javaType="java.lang.Integer"/>
+        <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+        <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+    </resultMap>
+
+    <resultMap id="ClothingSaleResultMap" type="com.konantech.mcp.domain.ClothingSale">
+        <id column="product_id" property="product_id" javaType="java.util.UUID"/>
+        <result column="product_name" property="product_name"/>
+        <result column="category" property="category"/>
+        <result column="original_price" property="original_price"/>
+        <result column="sale_price" property="sale_price"/>
+        <result column="discount_rate" property="discount_rate"/>
+        <result column="stock" property="stock"/>
+        <result column="is_on_sale" property="is_on_sale"/>
+        <result column="created_at" property="created_at" javaType="java.time.LocalDateTime"/>
+    </resultMap>
 
   <!-- corresponds to: List<Todo> findAll() -->
   <select id="findAll" resultMap="TodoResultMap">
@@ -59,21 +71,37 @@
   </delete>
 
   <!-- corresponds to: void insertTodo(Todo todo) -->
-  <insert id="insertTodo" parameterType="com.konantech.mcp.entity.Todo">
+  <insert id="insertTodo" parameterType="com.konantech.mcp.domain.Todo">
     INSERT INTO todo_list (id, title, description, is_done, priority, created_at, updated_at)
     VALUES (#{id}, #{title}, #{description}, #{isDone}, #{priority}, #{createdAt}, #{updatedAt})
   </insert>
 
-  <!-- corresponds to: void updateTodo(Todo todo) -->
-  <update id="updateTodo" parameterType="com.konantech.mcp.entity.Todo">
-    UPDATE todo_list
-    SET title = #{title},
-        description = #{description},
+    <!-- corresponds to: void updateTodo(Todo todo) -->
+    <update id="updateTodo" parameterType="com.konantech.mcp.domain.Todo">
+        UPDATE todo_list
+        SET title = #{title},
+            description = #{description},
         is_done = #{isDone},
         priority = #{priority},
         updated_at = #{updatedAt}
     WHERE id = #{id}
   </update>
+
+    <!-- corresponds to: List<ClothingSale> findAllClothingSale() -->
+    <select id="findAllClothingSale" resultMap="ClothingSaleResultMap">
+        SELECT product_id,
+               product_name,
+               category,
+               original_price,
+               sale_price,
+               discount_rate,
+               stock,
+               is_on_sale,
+               created_at AT TIME ZONE 'UTC' AS created_at
+        FROM clothing_sale
+        WHERE is_on_sale is true
+        ORDER BY created_at DESC
+    </select>
 
 </mapper>
 

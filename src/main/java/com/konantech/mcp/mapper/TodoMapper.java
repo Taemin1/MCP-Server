@@ -1,15 +1,15 @@
-package com.konantech.mcp.repository;
+package com.konantech.mcp.mapper;
+
+import com.konantech.mcp.domain.ClothingSale;
+import com.konantech.mcp.domain.Todo;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import com.konantech.mcp.entity.Todo;
-
 @Mapper
-public interface TodoRepository {
+public interface TodoMapper {
 
     List<Todo> findAll();
 
@@ -22,4 +22,6 @@ public interface TodoRepository {
     void insertTodo(Todo todo);
 
     void updateTodo(Todo todo);
+
+    List<ClothingSale> findAllClothingSale();
 }

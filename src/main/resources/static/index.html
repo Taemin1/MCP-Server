@@ -1,16 +1,16 @@
 ﻿<!DOCTYPE html>
-<html>
 <head>
     <meta charset="UTF-8">
     <title>MCP HTTP Test Client</title>
+    <link rel="icon" href="/favicon.ico"/>
     <style>
-		@font-face {
-		    font-family: 'IbmPlexSans';
-		    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-07@1.0/IBMPlexSansKR-Regular.woff') format('woff');
-		    font-weight: normal;
-		    font-display: swap;
-		}
-    
+        @font-face {
+            font-family: 'IbmPlexSans';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-07@1.0/IBMPlexSansKR-Regular.woff') format('woff');
+            font-weight: normal;
+            font-display: swap;
+        }
+
         body {
             font-family: 'IbmPlexSans', monospace;
             padding: 20px;
@@ -18,7 +18,7 @@
             color: #d4d4d4;
         }
         button {
-        	font-family: inherit;
+            font-family: inherit;
             padding: 8px 16px;
             margin: 4px;
             font-size: 17px;
@@ -162,6 +162,7 @@
 <h1>MCP HTTP Test Client</h1>
 
 <div>
+    <label for="url"></label>
     <input type="text" id="url" value="https://demeritorious-beverley-nonreadable.ngrok-free.dev" style="width:300px;padding:6px;" readonly>
     <button onclick="connect()">Connect</button>
     <button onclick="disconnect()">Reset</button>
@@ -336,7 +337,7 @@
                 parsed = JSON.parse(jsonStr);
                 log(`응답 상태: ${res.status}`, res.ok ? 'success' : 'error');
                 if (method === 'tools/call' && parsed.result && parsed.result.content) {
-	                log(parsed, res.ok ? 'success' : 'error');
+                    log(parsed, res.ok ? 'success' : 'error');
                     console.log('도구 응답:', parsed);
                 }
                 return parsed;
@@ -585,4 +586,3 @@
     log('페이지 로딩 완료!', 'success');
 </script>
 </body>
-</html>

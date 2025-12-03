@@ -35,3 +35,7 @@ logging:
     console:
       name: STDERR
       target: SYSTEM_ERR
+
+unsplash:
+  access-key: ${UNSPLASH_ACCESS_KEY:}
+  base-url: https://api.unsplash.com

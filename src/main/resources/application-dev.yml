@@ -47,3 +47,7 @@ mybatis:
   mapper-locations: classpath*:mappers/*.xml
   type-aliases-package: com.konantech.mcp.model,com.konantech.mcp.entity
   type-handlers-package: com.konantech.mcp.mybatis
+
+unsplash:
+  access-key: 0nWpvnLC3zfD3hsPD0g2LeEWIu00FKJ1fEyd9G2odiY
+  base-url: https://api.unsplash.com

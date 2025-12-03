@@ -3,7 +3,7 @@ package com.konantech.mcp.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.konantech.mcp.entity.Todo;
+import com.konantech.mcp.domain.Todo;
 
 public record TodoResponseDTO(
     UUID id,

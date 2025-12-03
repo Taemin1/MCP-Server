@@ -16,14 +16,6 @@ public class McpToolConfig implements WebMvcConfigurer {
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
-    /*
-    @Bean
-    public FilterRegistrationBean<RawJsonLoggingFilter> loggingFilter() {
-        FilterRegistrationBean<RawJsonLoggingFilter> registrationBean = new FilterRegistrationBean<>();
-        registrationBean.setFilter(new RawJsonLoggingFilter());
-        registrationBean.addUrlPatterns("/*");
-        return registrationBean;
-    }
-    */
+
     
 }

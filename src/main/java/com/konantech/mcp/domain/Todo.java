@@ -1,4 +1,4 @@
-package com.konantech.mcp.entity;
+package com.konantech.mcp.domain;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
