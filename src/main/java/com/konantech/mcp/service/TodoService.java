@@ -1,20 +1,31 @@
 package com.konantech.mcp.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.konantech.mcp.domain.ClothingSale;
 import com.konantech.mcp.domain.Todo;
 import com.konantech.mcp.dto.TodoResponseDTO;
 import com.konantech.mcp.mapper.TodoMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +43,43 @@ public class TodoService {
 
     private final TodoMapper todoMapper;
     private final UnsplashService unsplashService;
+
+    // 외부 API 호출
+    private final RestClient.Builder restClientBuilder;
+    @Value("${externalApiServer.base-url}")
+    private String baseUrl;
+
+    // 공통 헤더 / 기본 URL 설정한 RestClient 생성
+    private RestClient createClient() {
+        return restClientBuilder
+                .baseUrl(baseUrl)
+                .build();
+    }
+    
+    // jwt token값 추출
+    private String resolveBearerToken() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof JwtAuthenticationToken jwtAuthenticationToken) {
+            return jwtAuthenticationToken.getToken().getTokenValue();
+        }
+        if (authentication != null) {
+            Object credentials = authentication.getCredentials();
+            if (credentials instanceof Jwt jwt) {
+                return jwt.getTokenValue();
+            }
+            if (credentials instanceof String token) {
+                return token;
+            }
+        }
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs != null) {
+            String authHeader = attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+            if (authHeader != null && authHeader.toLowerCase().startsWith("bearer ")) {
+                return authHeader.substring(7);
+            }
+        }
+        throw new IllegalStateException("JWT 토큰을 SecurityContext에서 찾을 수 없습니다.");
+    }
 
     @Tool(
             name = "getAllTodos",
@@ -127,6 +175,21 @@ public class TodoService {
     }
 
     @Tool(
+            name = "getTodoByTitle",
+            description = "할일 제목(필수)으로 할일 목록을 조회합니다. 반환값은 JSON 배열 문자열입니다."
+    )
+    public String getTodoByTitle(
+            @ToolParam(description = "조회할 할일의 이름입니다. 문자열 형태입니다.")
+            String title
+    ) throws JsonProcessingException {
+        logger.info("[TOOL] getTodoByTitle 실행");
+        List<TodoResponseDTO> todos = todoMapper.findByTitle(title).stream()
+                .map(TodoResponseDTO::from)
+                .toList();
+        return objectMapper.writeValueAsString(todos);
+    }
+
+    @Tool(
             name = "getImageByKeyword",
             description = "키워드로 이미지를 검색하여 바이너리 데이터를 반환합니다. Unsplash API를 사용합니다."
     )
@@ -144,19 +207,45 @@ public class TodoService {
     public String getImageUrlByKeyword(
             @ToolParam(description = "검색할 키워드 (예: 강아지, 블로그 로봇)") String keyword
     ) {
-        logger.info("[TOOL] getImageUrlByKeyword 실행 : {}", keyword);
+        logger.info("[External API TOOL] getImageUrlByKeyword 실행 : {}", keyword);
         return unsplashService.fetchImageUrlByKeyword(keyword);
     }
 
     @Tool(
-        name = "findAllClothingSale",
+        name = "findClothingSale",
         description = "세일 중인 의류 상품 목록을 조회합니다. 반환 값은 ClothingSale 리스트이며, 데이터가 없으면 빈 리스트를 반환합니다."
     )
-    public List<ClothingSale> findAllClothingSale(
-            @ToolParam(description = "조회할 의류 상품 구분.")
-            String id
+    public Object findClothingSale(
+            @ToolParam(description = "조회할 의류 상품 세일 상태 구분.(true/false) / true : 세일중인 상품을 조회합니다. / false : 세일 상태가 아닌 상품을 조회합니다. (필수)")
+            String isOnSale
     ) {
-        logger.info("[TOOL] findAllClothingSale 실행");
-        return todoMapper.findAllClothingSale();
+        logger.info("[External API TOOL : include jwt] findClothingSale 실행");
+
+        RestClient client = createClient();
+        try {
+            if (isOnSale == null) {
+                throw new IllegalArgumentException("isOnSale 파라미터는 true/false 중 하나로 전달되어야 합니다.");
+            }
+            String bearer = resolveBearerToken();
+            JsonNode response = client.get()
+                    .uri(uriBuilder -> uriBuilder.path("/cloth/find/onSale")
+                            .queryParam("isOnSale", isOnSale)
+                            .build()
+                    )
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearer)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(JsonNode.class);
+            // logger.info("[External API TOOL : include jwt] response : {}", response);
+
+            if (response == null || !response.isArray() || response.isEmpty()) {
+                throw new IllegalStateException("검색 결과가 없습니다: " );
+            }
+
+            return response;
+        } catch (RestClientException e) {
+            logger.error(e.getMessage());
+            throw e;
+        }
     }
 }

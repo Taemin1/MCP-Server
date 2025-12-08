@@ -40,6 +40,13 @@
     WHERE id = #{id}
   </select>
 
+    <!-- corresponds to: Todo findByTitle(String title) -->
+    <select id="findByTitle" parameterType="String" resultMap="TodoResultMap">
+        SELECT id, title, description, is_done, priority, created_at, updated_at
+        FROM todo_list
+        WHERE title LIKE '%' || #{title} || '%'
+    </select>
+
   <!-- corresponds to: boolean existsByTitle(String title) -->
   <select id="existsByTitle" parameterType="java.lang.String" resultType="boolean">
     SELECT EXISTS (
@@ -86,22 +93,6 @@
         updated_at = #{updatedAt}
     WHERE id = #{id}
   </update>
-
-    <!-- corresponds to: List<ClothingSale> findAllClothingSale() -->
-    <select id="findAllClothingSale" resultMap="ClothingSaleResultMap">
-        SELECT product_id,
-               product_name,
-               category,
-               original_price,
-               sale_price,
-               discount_rate,
-               stock,
-               is_on_sale,
-               created_at AT TIME ZONE 'UTC' AS created_at
-        FROM clothing_sale
-        WHERE is_on_sale is true
-        ORDER BY created_at DESC
-    </select>
 
 </mapper>
 

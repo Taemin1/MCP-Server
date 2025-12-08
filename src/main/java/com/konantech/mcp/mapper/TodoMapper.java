@@ -13,6 +13,8 @@ public interface TodoMapper {
 
     List<Todo> findAll();
 
+    List<Todo> findByTitle(@Param("title") String title);;
+
     Todo findById(@Param("id") UUID id);
 
     boolean existsByTitle(@Param("title") String title);

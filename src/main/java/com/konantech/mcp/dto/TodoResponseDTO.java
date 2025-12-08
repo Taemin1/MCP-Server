@@ -1,9 +1,9 @@
 package com.konantech.mcp.dto;
 
+import com.konantech.mcp.domain.Todo;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
-
-import com.konantech.mcp.domain.Todo;
 
 public record TodoResponseDTO(
     UUID id,

@@ -32,6 +32,16 @@ spring:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: postgres
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8080/portal/kauth/oauth2/jwks
+        opaquetoken:
+          introspection-uri: http://localhost:8080/portal/kauth/oauth2/introspect
+          client-id: admin-client
+          client-secret: q1vGRFSg7YULuKPTelTb61O7bMJW5H
   jpa:
 #    hibernate:
 #      ddl-auto: update
@@ -42,6 +52,7 @@ logging:
   level:
     org.springframework.ai.mcp: DEBUG
     org.springframework.security: DEBUG
+    com.konantech.mcp.config: DEBUG
 
 
 mybatis:
@@ -52,3 +63,6 @@ mybatis:
 unsplash:
   access-key: 0nWpvnLC3zfD3hsPD0g2LeEWIu00FKJ1fEyd9G2odiY
   base-url: https://api.unsplash.com
+
+externalApiServer:
+  base-url: http://localhost:9091
