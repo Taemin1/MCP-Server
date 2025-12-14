@@ -1,130 +1,38 @@
 package com.konantech.mcp.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.konantech.mcp.security.TokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class MechanicService {
 
     private static final Logger logger = LoggerFactory.getLogger(MechanicService.class);
 
-    private static final Map<String, ProductInfo> PRODUCT_CATALOG = new HashMap<>();
+    @Value("${product.api.base-url}")
+    private String apiBaseUrl;
 
-    static class ProductInfo {
-        String productId;
-        String name;
-        String category;
-        int price;
-        int stock;
-        String specs;
-        String manufacturer;
-        String releaseDate;
-        List<String> features;
+    private final HttpClient httpClient;
+    private final ObjectMapper objectMapper;
+    private final TokenProvider tokenProvider;
 
-        ProductInfo(String productId, String name, String category, int price, int stock,
-                   String specs, String manufacturer, String releaseDate, List<String> features) {
-            this.productId = productId;
-            this.name = name;
-            this.category = category;
-            this.price = price;
-            this.stock = stock;
-            this.specs = specs;
-            this.manufacturer = manufacturer;
-            this.releaseDate = releaseDate;
-            this.features = features;
-        }
-    }
-
-    static {
-        PRODUCT_CATALOG.put("LAPTOP-2024-001", new ProductInfo(
-            "LAPTOP-2024-001",
-            "TechPro X1 Ultra",
-            "노트북",
-            2890000,
-            15,
-            "Intel Core i9-13900H, 32GB DDR5 RAM, 1TB NVMe SSD, RTX 4070 8GB, 15.6\" 4K OLED",
-            "TechPro",
-            "2024-03-15",
-            Arrays.asList("Thunderbolt 4 포트 3개", "Wi-Fi 6E", "4K 웹캠", "지문인식", "배터리 12시간")
-        ));
-
-        PRODUCT_CATALOG.put("LAPTOP-2024-002", new ProductInfo(
-            "LAPTOP-2024-002",
-            "WorkMaster Pro 14",
-            "노트북",
-            1590000,
-            8,
-            "AMD Ryzen 7 7840HS, 16GB DDR5 RAM, 512GB NVMe SSD, Radeon 780M, 14\" 2.8K IPS",
-            "WorkMaster",
-            "2024-01-20",
-            Arrays.asList("USB-C 충전", "백라이트 키보드", "MIL-STD-810H 인증", "배터리 15시간")
-        ));
-
-        PRODUCT_CATALOG.put("MONITOR-2024-001", new ProductInfo(
-            "MONITOR-2024-001",
-            "UltraView 32 Quantum",
-            "모니터",
-            890000,
-            23,
-            "32\" 4K 144Hz IPS Quantum Dot, HDR1000, 1ms 응답속도, DisplayPort 1.4, HDMI 2.1 x2",
-            "UltraView",
-            "2024-02-10",
-            Arrays.asList("G-Sync Compatible", "FreeSync Premium Pro", "높이/회전 조절", "USB-C 90W PD")
-        ));
-
-        PRODUCT_CATALOG.put("KEYBOARD-2024-001", new ProductInfo(
-            "KEYBOARD-2024-001",
-            "MechaMaster K95 RGB",
-            "키보드",
-            189000,
-            42,
-            "기계식 청축, N-Key Rollover, 풀 RGB 백라이트, 알루미늄 프레임, USB Type-C 탈착식 케이블",
-            "MechaMaster",
-            "2023-11-05",
-            Arrays.asList("매크로 키 6개", "USB 패스스루", "팜레스트 포함", "전용 소프트웨어")
-        ));
-
-        PRODUCT_CATALOG.put("MOUSE-2024-001", new ProductInfo(
-            "MOUSE-2024-001",
-            "PrecisionPro Wireless Elite",
-            "마우스",
-            129000,
-            67,
-            "무선 2.4GHz + Bluetooth, 25600 DPI 센서, 8개 프로그래밍 가능 버튼, 충전식 배터리 70시간",
-            "PrecisionPro",
-            "2024-04-01",
-            Arrays.asList("DPI 조절 버튼", "RGB 라이팅", "좌우손 대칭 디자인", "무게 조절 가능")
-        ));
-
-        PRODUCT_CATALOG.put("SSD-2024-001", new ProductInfo(
-            "SSD-2024-001",
-            "SpeedMax NVMe Gen5 2TB",
-            "저장장치",
-            459000,
-            31,
-            "2TB NVMe PCIe Gen5 x4, 읽기 12000MB/s, 쓰기 10000MB/s, DRAM 캐시, 5년 보증",
-            "SpeedMax",
-            "2024-05-12",
-            Arrays.asList("방열판 포함", "TBW 1200TB", "AES-256 암호화", "저전력 모드")
-        ));
-
-        PRODUCT_CATALOG.put("HEADSET-2024-001", new ProductInfo(
-            "HEADSET-2024-001",
-            "AudioPro X7 Wireless ANC",
-            "헤드셋",
-            279000,
-            19,
-            "블루투스 5.3, 능동형 노이즈캔슬링, 40mm 드라이버, 접이식, 배터리 40시간",
-            "AudioPro",
-            "2024-03-28",
-            Arrays.asList("멀티포인트 연결", "LDAC 코덱", "투명 모드", "음성 어시스턴트", "유선 연결 지원")
-        ));
+    public MechanicService(TokenProvider tokenProvider) {
+        this.httpClient = HttpClient.newHttpClient();
+        this.objectMapper = new ObjectMapper();
+        this.tokenProvider = tokenProvider;
     }
 
     @Tool(description = "제품 ID로 상세한 제품 정보를 조회합니다. 제품의 전체 스펙, 가격, 재고, 특징을 확인할 수 있습니다.")
@@ -133,30 +41,42 @@ public class MechanicService {
             String productId) {
         logger.info("[TOOL] getProductDetails 호출됨 - productId: {}", productId);
 
-        ProductInfo product = PRODUCT_CATALOG.get(productId);
-        if (product == null) {
-            String result = "제품 ID '" + productId + "'를 찾을 수 없습니다.";
-            logger.info("[TOOL] getProductDetails 결과: {}", result);
-            return result;
-        }
+        try {
+            String url = apiBaseUrl + "/api/products/" + productId;
+            String jsonResponse = callApi(url);
 
-        StringBuilder result = new StringBuilder();
-        result.append("=== 제품 상세 정보 ===\n");
-        result.append("제품명: ").append(product.name).append("\n");
-        result.append("제품 ID: ").append(product.productId).append("\n");
-        result.append("카테고리: ").append(product.category).append("\n");
-        result.append("제조사: ").append(product.manufacturer).append("\n");
-        result.append("출시일: ").append(product.releaseDate).append("\n");
-        result.append("가격: ").append(String.format("%,d원", product.price)).append("\n");
-        result.append("재고: ").append(product.stock).append("개\n");
-        result.append("스펙: ").append(product.specs).append("\n");
-        result.append("주요 기능:\n");
-        for (String feature : product.features) {
-            result.append("  - ").append(feature).append("\n");
-        }
+            if (jsonResponse == null) {
+                return "제품 ID '" + productId + "'를 찾을 수 없습니다.";
+            }
 
-        logger.info("[TOOL] getProductDetails 결과 반환");
-        return result.toString();
+            JsonNode product = objectMapper.readTree(jsonResponse);
+
+            StringBuilder result = new StringBuilder();
+            result.append("=== 제품 상세 정보 ===\n");
+            result.append("제품명: ").append(product.get("name").asText()).append("\n");
+            result.append("제품 ID: ").append(product.get("productId").asText()).append("\n");
+            result.append("카테고리: ").append(product.get("category").asText()).append("\n");
+            result.append("제조사: ").append(product.get("manufacturer").asText()).append("\n");
+            result.append("출시일: ").append(product.get("releaseDate").asText()).append("\n");
+            result.append("가격: ").append(String.format("%,d원", product.get("price").asInt())).append("\n");
+            result.append("재고: ").append(product.get("stock").asInt()).append("개\n");
+            result.append("스펙: ").append(product.get("specs").asText()).append("\n");
+            result.append("주요 기능:\n");
+
+            JsonNode features = product.get("features");
+            if (features != null && features.isArray()) {
+                for (JsonNode feature : features) {
+                    result.append("  - ").append(feature.asText()).append("\n");
+                }
+            }
+
+            logger.info("[TOOL] getProductDetails 결과 반환");
+            return result.toString();
+
+        } catch (Exception e) {
+            logger.error("[TOOL] getProductDetails 에러 발생", e);
+            return "제품 정보 조회 중 오류 발생: " + e.getMessage();
+        }
     }
 
     @Tool(description = "카테고리별로 제품 목록을 조회합니다. 각 제품의 기본 정보와 가격, 재고를 확인할 수 있습니다.")
@@ -165,30 +85,202 @@ public class MechanicService {
             String category) {
         logger.info("[TOOL] searchProductsByCategory 호출됨 - category: {}", category);
 
-        List<ProductInfo> products = PRODUCT_CATALOG.values().stream()
-                .filter(p -> p.category.equals(category))
-                .collect(Collectors.toList());
+        try {
+            String encodedCategory = URLEncoder.encode(category, StandardCharsets.UTF_8);
+            String url = apiBaseUrl + "/api/products/category/" + encodedCategory;
+            String jsonResponse = callApi(url);
 
-        if (products.isEmpty()) {
-            String result = "카테고리 '" + category + "'에 해당하는 제품이 없습니다.";
-            logger.info("[TOOL] searchProductsByCategory 결과: {}", result);
-            return result;
+            if (jsonResponse == null) {
+                return "카테고리 '" + category + "'에 해당하는 제품이 없습니다.";
+            }
+
+            JsonNode products = objectMapper.readTree(jsonResponse);
+
+            if (!products.isArray() || products.size() == 0) {
+                return "카테고리 '" + category + "'에 해당하는 제품이 없습니다.";
+            }
+
+            StringBuilder result = new StringBuilder();
+            result.append("=== ").append(category).append(" 카테고리 제품 목록 ===\n");
+
+            for (JsonNode product : products) {
+                result.append("\n제품 ID: ").append(product.get("productId").asText()).append("\n");
+                result.append("제품명: ").append(product.get("name").asText()).append("\n");
+                result.append("제조사: ").append(product.get("manufacturer").asText()).append("\n");
+                result.append("가격: ").append(String.format("%,d원", product.get("price").asInt())).append("\n");
+                result.append("재고: ").append(product.get("stock").asInt()).append("개\n");
+                result.append("---\n");
+            }
+
+            logger.info("[TOOL] searchProductsByCategory 결과: {}개 제품 발견", products.size());
+            return result.toString();
+
+        } catch (Exception e) {
+            logger.error("[TOOL] searchProductsByCategory 에러 발생", e);
+            return "제품 검색 중 오류 발생: " + e.getMessage();
         }
-
-        StringBuilder result = new StringBuilder();
-        result.append("=== ").append(category).append(" 카테고리 제품 목록 ===\n");
-        for (ProductInfo product : products) {
-            result.append("\n제품 ID: ").append(product.productId).append("\n");
-            result.append("제품명: ").append(product.name).append("\n");
-            result.append("제조사: ").append(product.manufacturer).append("\n");
-            result.append("가격: ").append(String.format("%,d원", product.price)).append("\n");
-            result.append("재고: ").append(product.stock).append("개\n");
-            result.append("---\n");
-        }
-
-        logger.info("[TOOL] searchProductsByCategory 결과: {}개 제품 발견", products.size());
-        return result.toString();
     }
 
+    @Tool(description = "가격 범위 내의 제품을 검색합니다. 예산에 맞는 제품을 찾을 때 유용합니다.")
+    public String searchProductsByPriceRange(
+            @ToolParam(description = "최소 가격 (원)")
+            int minPrice,
+            @ToolParam(description = "최대 가격 (원)")
+            int maxPrice) {
+        logger.info("[TOOL] searchProductsByPriceRange 호출됨 - minPrice: {}, maxPrice: {}", minPrice, maxPrice);
 
+        try {
+            String url = apiBaseUrl + "/api/products/price-range?minPrice=" + minPrice + "&maxPrice=" + maxPrice;
+            String jsonResponse = callApi(url);
+
+            if (jsonResponse == null) {
+                return String.format("%,d원 ~ %,d원 범위의 제품이 없습니다.", minPrice, maxPrice);
+            }
+
+            JsonNode products = objectMapper.readTree(jsonResponse);
+
+            if (!products.isArray() || products.size() == 0) {
+                return String.format("%,d원 ~ %,d원 범위의 제품이 없습니다.", minPrice, maxPrice);
+            }
+
+            StringBuilder result = new StringBuilder();
+            result.append(String.format("=== %,d원 ~ %,d원 범위 제품 ===\n", minPrice, maxPrice));
+
+            for (JsonNode product : products) {
+                result.append("\n제품명: ").append(product.get("name").asText()).append("\n");
+                result.append("제품 ID: ").append(product.get("productId").asText()).append("\n");
+                result.append("카테고리: ").append(product.get("category").asText()).append("\n");
+                result.append("가격: ").append(String.format("%,d원", product.get("price").asInt())).append("\n");
+                result.append("재고: ").append(product.get("stock").asInt()).append("개\n");
+                result.append("---\n");
+            }
+
+            logger.info("[TOOL] searchProductsByPriceRange 결과: {}개 제품 발견", products.size());
+            return result.toString();
+
+        } catch (Exception e) {
+            logger.error("[TOOL] searchProductsByPriceRange 에러 발생", e);
+            return "제품 검색 중 오류 발생: " + e.getMessage();
+        }
+    }
+
+    @Tool(description = "재고가 있는 제품만 조회합니다. 즉시 구매 가능한 제품을 확인할 수 있습니다.")
+    public String getAvailableProducts() {
+        logger.info("[TOOL] getAvailableProducts 호출됨");
+
+        try {
+            String url = apiBaseUrl + "/api/products/available";
+            String jsonResponse = callApi(url);
+
+            if (jsonResponse == null) {
+                return "재고 보유 제품이 없습니다.";
+            }
+
+            JsonNode products = objectMapper.readTree(jsonResponse);
+
+            StringBuilder result = new StringBuilder();
+            result.append("=== 재고 보유 제품 목록 ===\n");
+
+            for (JsonNode product : products) {
+                result.append("\n제품명: ").append(product.get("name").asText()).append("\n");
+                result.append("제품 ID: ").append(product.get("productId").asText()).append("\n");
+                result.append("카테고리: ").append(product.get("category").asText()).append("\n");
+                result.append("가격: ").append(String.format("%,d원", product.get("price").asInt())).append("\n");
+                result.append("재고: ").append(product.get("stock").asInt()).append("개\n");
+                result.append("---\n");
+            }
+
+            logger.info("[TOOL] getAvailableProducts 결과: {}개 제품 반환", products.size());
+            return result.toString();
+
+        } catch (Exception e) {
+            logger.error("[TOOL] getAvailableProducts 에러 발생", e);
+            return "제품 조회 중 오류 발생: " + e.getMessage();
+        }
+    }
+
+    @Tool(description = "제조사별 제품을 조회합니다. 특정 브랜드의 모든 제품을 확인할 수 있습니다.")
+    public String searchProductsByManufacturer(
+            @ToolParam(description = "제조사 이름 (예: TechPro, WorkMaster, UltraView, MechaMaster, PrecisionPro, SpeedMax, AudioPro)")
+            String manufacturer) {
+        logger.info("[TOOL] searchProductsByManufacturer 호출됨 - manufacturer: {}", manufacturer);
+
+        try {
+            String encodedManufacturer = URLEncoder.encode(manufacturer, StandardCharsets.UTF_8);
+            String url = apiBaseUrl + "/api/products/manufacturer/" + encodedManufacturer;
+            String jsonResponse = callApi(url);
+
+            if (jsonResponse == null) {
+                return "제조사 '" + manufacturer + "'의 제품이 없습니다.";
+            }
+
+            JsonNode products = objectMapper.readTree(jsonResponse);
+
+            if (!products.isArray() || products.size() == 0) {
+                return "제조사 '" + manufacturer + "'의 제품이 없습니다.";
+            }
+
+            StringBuilder result = new StringBuilder();
+            result.append("=== ").append(manufacturer).append(" 제품 목록 ===\n");
+
+            for (JsonNode product : products) {
+                result.append("\n제품명: ").append(product.get("name").asText()).append("\n");
+                result.append("제품 ID: ").append(product.get("productId").asText()).append("\n");
+                result.append("카테고리: ").append(product.get("category").asText()).append("\n");
+                result.append("가격: ").append(String.format("%,d원", product.get("price").asInt())).append("\n");
+                result.append("재고: ").append(product.get("stock").asInt()).append("개\n");
+                result.append("스펙: ").append(product.get("specs").asText()).append("\n");
+                result.append("---\n");
+            }
+
+            logger.info("[TOOL] searchProductsByManufacturer 결과: {}개 제품 발견", products.size());
+            return result.toString();
+
+        } catch (Exception e) {
+            logger.error("[TOOL] searchProductsByManufacturer 에러 발생", e);
+            return "제품 검색 중 오류 발생: " + e.getMessage();
+        }
+    }
+
+    /**
+     * REST API 호출 헬퍼 메서드
+     * JWT 토큰을 포함하여 API 호출
+     */
+    private String callApi(String url) {
+        try {
+            // JWT 토큰 가져오기
+            String authHeader = tokenProvider.getAuthorizationHeader();
+
+            // HTTP 요청 생성
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET();
+
+            // JWT 토큰이 있으면 Authorization 헤더 추가
+            if (authHeader != null) {
+                requestBuilder.header("Authorization", authHeader);
+                logger.debug("API 호출 시 JWT 토큰 전달: {}", url);
+            }
+
+            HttpRequest request = requestBuilder.build();
+
+            // API 호출
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            logger.debug("API 응답 상태: {} - URL: {}", response.statusCode(), url);
+
+            if (response.statusCode() == 200) {
+                return response.body();
+            } else if (response.statusCode() == 404) {
+                return null; // 데이터 없음
+            } else {
+                logger.error("API 호출 실패 - 상태 코드: {}, URL: {}", response.statusCode(), url);
+                return null;
+            }
+
+        } catch (Exception e) {
+            logger.error("API 호출 중 예외 발생 - URL: {}", url, e);
+            return null;
+        }
+    }
 }

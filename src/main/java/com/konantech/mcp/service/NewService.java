@@ -840,4 +840,92 @@ public class NewService {
             default: return type;
         }
     }
+
+    // ==================== 7. 역사적 사실 Tools ====================
+
+    @Tool(description = "유명한 역사적 사건의 발생 연도를 조회합니다.")
+    public String getHistoricalEventYear(
+            @ToolParam(description = "역사적 사건명 (예: 한국전쟁, 프랑스혁명, 베를린장벽붕괴)")
+            String eventName) {
+        logger.info("[TOOL] getHistoricalEventYear 호출됨 - eventName: {}", eventName);
+
+        String result;
+        switch (eventName) {
+            case "한국전쟁":
+                result = "한국전쟁은 1950년 6월 25일에 발발하여 1953년 7월 27일 휴전협정이 체결되었습니다.";
+                break;
+            case "프랑스혁명":
+                result = "프랑스혁명은 1789년에 시작되어 1799년까지 이어졌습니다. 1789년 7월 14일 바스티유 감옥 습격이 상징적 사건입니다.";
+                break;
+            case "베를린장벽붕괴":
+                result = "베를린 장벽은 1989년 11월 9일에 붕괴되었으며, 이는 냉전 종식의 상징적 사건이었습니다.";
+                break;
+            case "제1차세계대전":
+                result = "제1차 세계대전은 1914년 7월 28일에 시작되어 1918년 11월 11일에 종전되었습니다.";
+                break;
+            case "제2차세계대전":
+                result = "제2차 세계대전은 1939년 9월 1일 독일의 폴란드 침공으로 시작되어 1945년 9월 2일 일본의 항복으로 종전되었습니다.";
+                break;
+            case "대한민국정부수립":
+                result = "대한민국 정부는 1948년 8월 15일에 수립되었습니다.";
+                break;
+            case "3.1운동":
+                result = "3.1운동은 1919년 3월 1일에 시작된 한국의 독립 만세 운동입니다.";
+                break;
+            case "미국독립선언":
+                result = "미국 독립선언은 1776년 7월 4일에 발표되었습니다.";
+                break;
+            default:
+                result = "'" + eventName + "' 사건에 대한 정보가 데이터베이스에 없습니다. 다른 사건명을 입력해주세요.";
+        }
+
+        logger.info("[TOOL] getHistoricalEventYear 결과: {}", result);
+        return result;
+    }
+
+    @Tool(description = "유명 인물의 출생 및 사망 연도를 조회합니다. LLM이 이미 알고 있는 일반적인 역사 지식입니다.")
+    public String getHistoricalFigureInfo(
+            @ToolParam(description = "역사적 인물명 (예: 세종대왕, 나폴레옹, 아인슈타인)")
+            String personName) {
+        logger.info("[TOOL] getHistoricalFigureInfo 호출됨 - personName: {}", personName);
+
+        String result;
+        switch (personName) {
+            case "세종대왕":
+                result = "세종대왕(1397-1450)은 조선의 제4대 왕으로, 한글을 창제하고 과학 기술과 문화를 발전시킨 성군입니다.";
+                break;
+            case "나폴레옹":
+                result = "나폴레옹 보나파르트(1769-1821)는 프랑스 제1제국의 황제로, 유럽 대륙을 정복하려 했던 군사 지도자입니다.";
+                break;
+            case "아인슈타인":
+                result = "알베르트 아인슈타인(1879-1955)은 독일 출신의 물리학자로, 상대성이론을 제시하여 현대 물리학의 기초를 마련했습니다.";
+                break;
+            case "링컨":
+                result = "에이브러햄 링컨(1809-1865)은 미국의 제16대 대통령으로, 노예제 폐지와 남북전쟁을 이끈 지도자입니다.";
+                break;
+            case "이순신":
+                result = "이순신(1545-1598)은 조선시대의 명장으로, 임진왜란 때 거북선을 이용하여 왜군을 격퇴한 장군입니다.";
+                break;
+            case "간디":
+                result = "마하트마 간디(1869-1948)는 인도의 독립운동가로, 비폭력 저항 운동을 통해 영국으로부터 독립을 이끌어냈습니다.";
+                break;
+            case "마르틴루터킹":
+                result = "마틀 루터 킹 주니어(1929-1968)는 미국의 인권운동가로, 비폭력 시민 저항을 통해 흑인 인권 향상에 기여했습니다.";
+                break;
+            case "셰익스피어":
+                result = "윌리엄 셰익스피어(1564-1616)는 영국의 극작가이자 시인으로, '햄릿', '로미오와 줄리엣' 등 불멸의 작품을 남겼습니다.";
+                break;
+            case "다윈":
+                result = "찰스 다윈(1809-1882)은 영국의 생물학자로, 진화론과 자연선택설을 제시하여 생물학에 혁명을 일으켰습니다.";
+                break;
+            case "콜럼버스":
+                result = "크리스토퍼 콜럼버스(1451-1506)는 이탈리아 출신 탐험가로, 1492년 아메리카 대륙을 발견했습니다.";
+                break;
+            default:
+                result = "'" + personName + "' 인물에 대한 정보가 데이터베이스에 없습니다. 다른 인물명을 입력해주세요.";
+        }
+
+        logger.info("[TOOL] getHistoricalFigureInfo 결과: {}", result);
+        return result;
+    }
 }

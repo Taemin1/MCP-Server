@@ -17,7 +17,39 @@ spring:
           resource: true
           prompt: true
           completion: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mcpdb
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.konantech.mcp.dto
+  configuration:
+    map-underscore-to-camel-case: true
 
 server:
-  port: 8080
+  port: 8082
+
+auth:
+  server:
+    introspect-url: http://localhost:8080/portal/kauth/oauth2/introspect
+    client-id: admin-client
+    client-secret: q1vGRFSg7YULuKPTelTb61O7bMJW5H
+
+naver:
+  api:
+    client-id: RJJUARjTU7ODTzW2X8iR
+    client-secret: 6lAemJUN5Y
+    news-url: https://openapi.naver.com/v1/search/news.json
+
+product:
+  api:
+    base-url: http://localhost:8082
+
+logging:
+  level:
+    com.konantech.mcp.security: DEBUG
+    org.springframework.security: DEBUG
 

@@ -1,6 +1,7 @@
 package com.konantech.mcp;
 
 import com.konantech.mcp.service.MechanicService;
+import com.konantech.mcp.service.NaverNewsService;
 import com.konantech.mcp.service.NewService;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -16,10 +17,12 @@ public class McpApplication {
 	}
 
 	@Bean
-	public ToolCallbackProvider weatherTools(MechanicService mechanicService) {
+	public ToolCallbackProvider tools(MechanicService mechanicService,
+									  NewService newService,
+									  NaverNewsService naverNewsService) {
 		return MethodToolCallbackProvider.builder()
-				.toolObjects(mechanicService)
+				.toolObjects(mechanicService, newService, naverNewsService)
 				.build();
 	}
-
 }
+

@@ -29,6 +29,7 @@ public class LoggingFilter implements Filter {
         logger.info("========================================");
         logger.info("[REQUEST] {} {} {}", method, uri, queryString != null ? "?" + queryString : "");
         logger.info("[HEADERS] Content-Type: {}", httpRequest.getHeader("Content-Type"));
+        logger.info("[HEADERS] Authorization: {}", httpRequest.getHeader("Authorization") != null ? "Present" : "Missing");
 
         long startTime = System.currentTimeMillis();
 

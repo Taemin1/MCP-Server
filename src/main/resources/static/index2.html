@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Definition Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header p { font-size: 16px; opacity: 0.9; }
+        .content { padding: 40px; }
+        .form-group { margin-bottom: 25px; }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .btn-submit {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-submit:active { transform: translateY(0); }
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .tool-list {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .tool-list h2 { margin-bottom: 20px; color: #333; }
+        .tool-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        .tool-item h3 { color: #667eea; margin-bottom: 10px; }
+        .tool-item p { margin: 5px 0; color: #555; font-size: 14px; }
+        .tool-item strong { color: #333; }
+        .loading { text-align: center; padding: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Tool Definition Manager</h1>
+            <p>MCP Server Tool Registration</p>
+        </div>
+        <div class="content">
+            <div id="message" class="message"></div>
+            <form id="toolForm">
+                <div class="form-group">
+                    <label for="toolName">Tool Name *</label>
+                    <input type="text" id="toolName" name="toolName" required placeholder="e.g., getHistoricalEvent">
+                </div>
+                <div class="form-group">
+                    <label for="toolDescription">Tool Description *</label>
+                    <textarea id="toolDescription" name="toolDescription" required placeholder="e.g., Get historical event information"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="toolParam">Tool Parameter *</label>
+                    <input type="text" id="toolParam" name="toolParam" required placeholder="e.g., eventName">
+                </div>
+                <div class="form-group">
+                    <label for="toolParamDescription">Parameter Description *</label>
+                    <textarea id="toolParamDescription" name="toolParamDescription" required placeholder="e.g., Event name (Korean War, French Revolution)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="apiUrl">API URL</label>
+                    <input type="text" id="apiUrl" name="apiUrl" placeholder="e.g., https://api.example.com/data?q={param}&key={apiKey}">
+                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
+                        Use {param} for parameter and {apiKey} for API key placeholders
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label for="apiKey">API Key</label>
+                    <input type="text" id="apiKey" name="apiKey" placeholder="e.g., your_api_key_here">
+                </div>
+                <div class="form-group">
+                    <label for="requestMethod">Request Method</label>
+                    <select id="requestMethod" name="requestMethod" style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">Register Tool</button>
+            </form>
+            <div class="tool-list">
+                <h2>Registered Tools</h2>
+                <div id="toolListContainer" class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => { loadTools(); });
+
+        document.getElementById('toolForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                toolName: document.getElementById('toolName').value,
+                toolDescription: document.getElementById('toolDescription').value,
+                toolParam: document.getElementById('toolParam').value,
+                toolParamDescription: document.getElementById('toolParamDescription').value,
+                apiUrl: document.getElementById('apiUrl').value,
+                apiKey: document.getElementById('apiKey').value,
+                requestMethod: document.getElementById('requestMethod').value
+            };
+            try {
+                const response = await fetch('/api/tools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                const result = await response.text();
+                if (response.ok) {
+                    showMessage(result, 'success');
+                    document.getElementById('toolForm').reset();
+                    loadTools();
+                } else {
+                    showMessage('Registration failed: ' + result, 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        });
+
+        async function loadTools() {
+            try {
+                const response = await fetch('/api/tools');
+                const tools = await response.json();
+                const container = document.getElementById('toolListContainer');
+                if (tools.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #999;">No tools registered.</p>';
+                } else {
+                    container.innerHTML = tools.map(tool => `
+                        <div class="tool-item">
+                            <h3>${tool.toolName}</h3>
+                            <p><strong>Description:</strong> ${tool.toolDescription}</p>
+                            <p><strong>Parameter:</strong> ${tool.toolParam}</p>
+                            <p><strong>Parameter Description:</strong> ${tool.toolParamDescription}</p>
+                            ${tool.apiUrl ? `<p><strong>API URL:</strong> ${tool.apiUrl}</p>` : ''}
+                            ${tool.apiKey ? `<p><strong>API Key:</strong> ${tool.apiKey.substring(0, 10)}***</p>` : ''}
+                            ${tool.requestMethod ? `<p><strong>Method:</strong> ${tool.requestMethod}</p>` : ''}
+                            <p style="font-size: 12px; color: #999; margin-top: 10px;">ID: ${tool.id}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                document.getElementById('toolListContainer').innerHTML = '<p style="color: red;">Loading failed: ' + error.message + '</p>';
+            }
+        }
+
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = 'message ' + type;
+            messageEl.style.display = 'block';
+            setTimeout(() => { messageEl.style.display = 'none'; }, 5000);
+        }
+    </script>
+</body>
+</html>
